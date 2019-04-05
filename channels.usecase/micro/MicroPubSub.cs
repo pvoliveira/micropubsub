@@ -7,61 +7,59 @@ namespace channels.usecase.micro
     using System.Threading.Channels;
     using System.Threading.Tasks;
 
-    public static class MicroPubSub
+    public class MicroPubSub : IDisposable
     {
-        private static Channel<string> _addTopics;
-        private static List<string> _topics;
-        private static ConcurrentDictionary<string, Channel<Message>> _queues;
-        
-        public static IReadOnlyCollection<string> Topics => _topics;
+        private static MicroPubSub instance;
 
-        static MicroPubSub()
+        private Channel<string> _addTopics;
+        private ConcurrentDictionary<string, Channel<Message>> _queues;
+        
+        public int Topics => _queues.Keys.Count;
+
+        public static MicroPubSub GetInstance()
+        {
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            instance = new MicroPubSub();
+
+            return instance;
+        }
+
+        public MicroPubSub()
         {
             _addTopics = Channel.CreateUnbounded<string>(new UnboundedChannelOptions() {
                 SingleReader = true,
                 SingleWriter = false
             });
+
             _queues = new ConcurrentDictionary<string, Channel<Message>>();
-            _topics = new List<string>();
-
-            handleAddTopics();
-
-            async Task handleAddTopics()
-            {
-                while (await _addTopics.Reader.WaitToReadAsync())
-                {
-                    var topicName = await _addTopics.Reader.ReadAsync();
-                    if (_topics.Contains(topicName))
-                    {
-                        continue;
-                    }
-                    _topics.Add(topicName);
-                    _queues.AddOrUpdate(topicName, Channel.CreateUnbounded<Message>(new UnboundedChannelOptions() {
-                        SingleReader = false,
-                        SingleWriter = true
-                    }), 
-                    (k, av) => av);
-                    
-                }
-            };
         }
 
-        public static async ValueTask<bool> InitTopic(string name)
+        public async Task InitTopic(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Topic name can not be empty.", nameof(name));
             }
 
-            while (await _addTopics.Writer.WaitToWriteAsync())
+            if (_queues.Keys.Contains(name))
             {
-                return await new ValueTask<bool>(_addTopics.Writer.TryWrite(name));                
+                return;
             }
-
-            return await new ValueTask<bool>(false);
+                    
+            _queues.AddOrUpdate(
+                name, 
+                Channel.CreateUnbounded<Message>(new UnboundedChannelOptions() {
+                    SingleReader = false,
+                    SingleWriter = true
+                }), 
+                (k, av) => av);
         }
 
-        public static async ValueTask<bool> Pub(string topic, Message data)
+        public async ValueTask<bool> Pub(string topic, Message data)
         {
             if (string.IsNullOrWhiteSpace(topic))
             {
@@ -81,7 +79,7 @@ namespace channels.usecase.micro
             return await new ValueTask<bool>(false);
         }
 
-        public static async Task<ChannelReader<Message>> Sub(string topic)
+        public async Task<ChannelReader<Message>> Sub(string topic)
         {
             if (string.IsNullOrWhiteSpace(topic))
             {
@@ -89,6 +87,23 @@ namespace channels.usecase.micro
             }
 
             return await Task.FromResult(_queues.GetValueOrDefault(topic));       
+        }
+
+        public void Dispose()
+        {
+            if (_addTopics != null)
+            {
+                _addTopics.Writer.TryComplete();
+            }
+
+            foreach (var k in _queues.Keys)
+            {
+                if (_queues.TryRemove(k, out var ch))
+                {
+                    ch.Writer.Complete();
+                }
+            }
+            
         }
     }
 }

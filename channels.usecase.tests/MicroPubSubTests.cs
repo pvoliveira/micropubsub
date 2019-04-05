@@ -8,7 +8,6 @@ namespace channels.usecase.tests
     [TestClass]
     public class MicroPubSubTests
     {
-
         // testing a topic
         [TestMethod]
         public void InitialState_TopicsCountIsZero()
@@ -16,7 +15,7 @@ namespace channels.usecase.tests
             // Arrange
             // Act
             // Assert
-            Assert.AreEqual(0, MicroPubSub.Topics.Count);
+            Assert.AreEqual(0, MicroPubSub.GetInstance().Topics);
         }
 
         [TestMethod]
@@ -24,17 +23,17 @@ namespace channels.usecase.tests
         {
             // Arrange
             const string topicName = "topic1";
+            var instance = MicroPubSub.GetInstance();
+
             // Act
-            var topicIsCreated = await MicroPubSub.InitTopic(topicName);
+            await instance.InitTopic(topicName);
 
             // because of async channel`s nature, 
             // this time is needed to action run and sync new topic.
-            System.Threading.Thread.Sleep(100);
+            System.Threading.Thread.Sleep(10);
 
             // Assert
-            Assert.IsNotNull(topicIsCreated);
-            Assert.AreEqual(true, topicIsCreated);
-            Assert.AreEqual(1, MicroPubSub.Topics.Count);
+            Assert.AreEqual(1, instance.Topics);
         }
 
         // testing pub to a topic
@@ -43,12 +42,13 @@ namespace channels.usecase.tests
         {
             // Arrange
             const string topicName = "topic1";
-            await MicroPubSub.InitTopic(topicName);
+            var instance = MicroPubSub.GetInstance();
+            await instance.InitTopic(topicName);
 
             var message = new Message<string>("data");
 
             // Act
-            var published = await MicroPubSub.Pub(topicName, message);
+            var published = await instance.Pub(topicName, message);
 
             // Assert
             Assert.AreEqual(true, published);
@@ -60,13 +60,13 @@ namespace channels.usecase.tests
             // Arrange
             const string invalidTopicName = "";     
             const string topicName = "topic1";
-            await MicroPubSub.InitTopic(topicName);
+            await MicroPubSub.GetInstance().InitTopic(topicName);
 
             var message = new Message<string>("data");      
 
             // Act
             // Assert
-            await Assert.ThrowsExceptionAsync<ArgumentException>(async () => await MicroPubSub.Pub(invalidTopicName, message));
+            await Assert.ThrowsExceptionAsync<ArgumentException>(async () => await MicroPubSub.GetInstance().Pub(invalidTopicName, message));
         }
 
         [TestMethod]
@@ -74,11 +74,11 @@ namespace channels.usecase.tests
         {
             // Arrange  
             const string topicName = "topic1";
-            await MicroPubSub.InitTopic(topicName);  
+            await MicroPubSub.GetInstance().InitTopic(topicName);  
 
             // Act
             // Assert
-            await Assert.ThrowsExceptionAsync<ArgumentNullException>(async ()  => await MicroPubSub.Pub(topicName, null));
+            await Assert.ThrowsExceptionAsync<ArgumentNullException>(async ()  => await MicroPubSub.GetInstance().Pub(topicName, null));
         }
 
         // testing sub a topic
@@ -87,14 +87,15 @@ namespace channels.usecase.tests
         {
             // Arrange
             const string topicName = "topic1";
-            await MicroPubSub.InitTopic(topicName);
+            var instance = MicroPubSub.GetInstance();
+            await instance.InitTopic(topicName);
 
             var message = new Message<string>("data");
 
-            var published = await MicroPubSub.Pub(topicName, message);            
+            var published = await instance.Pub(topicName, message);
 
             // Act
-            var consumer = await MicroPubSub.Sub(topicName);
+            var consumer = await instance.Sub(topicName);
             var hasMessage = consumer.TryRead(out var received);
 
             // Assert
@@ -111,8 +112,7 @@ namespace channels.usecase.tests
 
             // Act
             // Assert
-            await Assert.ThrowsExceptionAsync<ArgumentException>(() => MicroPubSub.Sub(invalidTopicName));
+            await Assert.ThrowsExceptionAsync<ArgumentException>(() => MicroPubSub.GetInstance().Sub(invalidTopicName));
         }
-
     }
 }

@@ -4,11 +4,8 @@ namespace channels.usecase.micro
 
     public abstract class Message
     {
-        private string _topic;
         private string _metadata;
         private object _data;
-
-        public string Topic => _topic;
 
         public object Data => _data;
 
