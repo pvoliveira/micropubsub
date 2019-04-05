@@ -1,4 +1,4 @@
-namespace channels.usecase.MicroPubSub
+namespace channels.usecase.micro
 {
     using System;
     using System.Collections.Concurrent;
@@ -11,7 +11,7 @@ namespace channels.usecase.MicroPubSub
     {
         private static Channel<string> _addTopics;
         private static List<string> _topics;
-        private static ConcurrentDictionary<string, Channel<Message>> _topicsPub;
+        private static ConcurrentDictionary<string, Channel<Message>> _queues;
         
         public static IReadOnlyCollection<string> Topics => _topics;
 
@@ -21,7 +21,7 @@ namespace channels.usecase.MicroPubSub
                 SingleReader = true,
                 SingleWriter = false
             });
-            _topicsPub = new ConcurrentDictionary<string, Channel<Message>>();
+            _queues = new ConcurrentDictionary<string, Channel<Message>>();
             _topics = new List<string>();
 
             handleAddTopics();
@@ -36,9 +36,9 @@ namespace channels.usecase.MicroPubSub
                         continue;
                     }
                     _topics.Add(topicName);
-                    _topicsPub.AddOrUpdate(topicName, Channel.CreateUnbounded<Message>(new UnboundedChannelOptions() {
+                    _queues.AddOrUpdate(topicName, Channel.CreateUnbounded<Message>(new UnboundedChannelOptions() {
                         SingleReader = false,
-                        SingleWriter = false
+                        SingleWriter = true
                     }), 
                     (k, av) => av);
                     
@@ -48,6 +48,11 @@ namespace channels.usecase.MicroPubSub
 
         public static async ValueTask<bool> InitTopic(string name)
         {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Topic name can not be empty.", nameof(name));
+            }
+
             while (await _addTopics.Writer.WaitToWriteAsync())
             {
                 return await new ValueTask<bool>(_addTopics.Writer.TryWrite(name));                
@@ -56,14 +61,34 @@ namespace channels.usecase.MicroPubSub
             return await new ValueTask<bool>(false);
         }
 
-        public static async ValueTask<bool> Pub<T>(string topic, Message<T> data)
+        public static async ValueTask<bool> Pub(string topic, Message data)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                throw new ArgumentException("Topic name can not be empty.", nameof(topic));
+            }
+
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            if (_queues.TryGetValue(topic, out var ch))
+            {
+                return await new ValueTask<bool>(ch.Writer.TryWrite(data));
+            }
+
+            return await new ValueTask<bool>(false);
         }
 
-        public static async Task<ChannelWriter<Message<T>>> Sub<T>(string topic)
+        public static async Task<ChannelReader<Message>> Sub(string topic)
         {
-            throw new NotImplementedException();            
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                throw new ArgumentException("Topic name can not be empty.", nameof(topic));
+            }
+
+            return await Task.FromResult(_queues.GetValueOrDefault(topic));       
         }
     }
 }

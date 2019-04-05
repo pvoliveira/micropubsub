@@ -1,4 +1,4 @@
-namespace channels.usecase.MicroPubSub
+namespace channels.usecase.micro
 {
     using System;
 
@@ -10,6 +10,8 @@ namespace channels.usecase.MicroPubSub
 
         public string Topic => _topic;
 
+        public object Data => _data;
+
         public Message(object data)
         {
             _data = data;
@@ -20,8 +22,6 @@ namespace channels.usecase.MicroPubSub
             _metadata = string.Join(';', metadata);
             _data = data;
         }
-
-        public 
     }
 
     public class Message<T> : Message
@@ -33,21 +33,5 @@ namespace channels.usecase.MicroPubSub
         public Message(string[] metadata, T data) : base(metadata, data)
         {
         }
-
-
     }
-
-    // public ref struct Message<T>
-    // {
-    //     public ReadOnlySpan<char> Metatada { get; }
-    //     public string Topic { get; }
-    //     public T Data { get; }
-
-    //     public Message(ReadOnlySpan<char> metadata, string topic, T data)
-    //     {
-    //         this.Metatada = metadata;
-    //         this.Topic = topic;
-    //         this.Data = data;
-    //     }
-    // }
 }
