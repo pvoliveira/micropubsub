@@ -10,8 +10,6 @@ namespace channels.usecase.micro
     public class MicroPubSub : IDisposable
     {
         private static MicroPubSub instance;
-
-        private Channel<string> _addTopics;
         private ConcurrentDictionary<string, Channel<Message>> _queues;
         
         public int Topics => _queues.Keys.Count;
@@ -30,15 +28,10 @@ namespace channels.usecase.micro
 
         public MicroPubSub()
         {
-            _addTopics = Channel.CreateUnbounded<string>(new UnboundedChannelOptions() {
-                SingleReader = true,
-                SingleWriter = false
-            });
-
             _queues = new ConcurrentDictionary<string, Channel<Message>>();
         }
 
-        public async Task InitTopic(string name)
+        public void InitTopic(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -73,37 +66,35 @@ namespace channels.usecase.micro
 
             if (_queues.TryGetValue(topic, out var ch))
             {
-                return await new ValueTask<bool>(ch.Writer.TryWrite(data));
+                while (await ch.Writer.WaitToWriteAsync())
+                {
+                    await ch.Writer.WriteAsync(data);
+                    return await new ValueTask<bool>(true);
+                }
             }
 
             return await new ValueTask<bool>(false);
         }
 
-        public async Task<ChannelReader<Message>> Sub(string topic)
+        public ChannelReader<Message> Sub(string topic)
         {
             if (string.IsNullOrWhiteSpace(topic))
             {
                 throw new ArgumentException("Topic name can not be empty.", nameof(topic));
             }
 
-            return await Task.FromResult(_queues.GetValueOrDefault(topic));       
+            return _queues.GetValueOrDefault(topic);       
         }
 
         public void Dispose()
         {
-            if (_addTopics != null)
-            {
-                _addTopics.Writer.TryComplete();
-            }
-
             foreach (var k in _queues.Keys)
             {
                 if (_queues.TryRemove(k, out var ch))
                 {
                     ch.Writer.Complete();
                 }
-            }
-            
+            }            
         }
     }
 }

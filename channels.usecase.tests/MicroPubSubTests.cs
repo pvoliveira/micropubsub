@@ -19,14 +19,14 @@ namespace channels.usecase.tests
         }
 
         [TestMethod]
-        public async Task InitTopic_ValidTopicName_TopicsCountEqualsOne()
+        public void InitTopic_ValidTopicName_TopicsCountEqualsOne()
         {
             // Arrange
             const string topicName = "topic1";
             var instance = MicroPubSub.GetInstance();
 
             // Act
-            await instance.InitTopic(topicName);
+            instance.InitTopic(topicName);
 
             // because of async channel`s nature, 
             // this time is needed to action run and sync new topic.
@@ -43,7 +43,7 @@ namespace channels.usecase.tests
             // Arrange
             const string topicName = "topic1";
             var instance = MicroPubSub.GetInstance();
-            await instance.InitTopic(topicName);
+            instance.InitTopic(topicName);
 
             var message = new Message<string>("data");
 
@@ -60,7 +60,7 @@ namespace channels.usecase.tests
             // Arrange
             const string invalidTopicName = "";     
             const string topicName = "topic1";
-            await MicroPubSub.GetInstance().InitTopic(topicName);
+            MicroPubSub.GetInstance().InitTopic(topicName);
 
             var message = new Message<string>("data");      
 
@@ -74,7 +74,7 @@ namespace channels.usecase.tests
         {
             // Arrange  
             const string topicName = "topic1";
-            await MicroPubSub.GetInstance().InitTopic(topicName);  
+            MicroPubSub.GetInstance().InitTopic(topicName);  
 
             // Act
             // Assert
@@ -88,14 +88,14 @@ namespace channels.usecase.tests
             // Arrange
             const string topicName = "topic1";
             var instance = MicroPubSub.GetInstance();
-            await instance.InitTopic(topicName);
+            instance.InitTopic(topicName);
 
             var message = new Message<string>("data");
 
             var published = await instance.Pub(topicName, message);
 
             // Act
-            var consumer = await instance.Sub(topicName);
+            var consumer = instance.Sub(topicName);
             var hasMessage = consumer.TryRead(out var received);
 
             // Assert
@@ -112,7 +112,7 @@ namespace channels.usecase.tests
 
             // Act
             // Assert
-            await Assert.ThrowsExceptionAsync<ArgumentException>(() => MicroPubSub.GetInstance().Sub(invalidTopicName));
+            Assert.ThrowsException<ArgumentException>(() => MicroPubSub.GetInstance().Sub(invalidTopicName));
         }
     }
 }

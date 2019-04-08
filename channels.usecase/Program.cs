@@ -14,12 +14,12 @@ namespace channels.usecase
 
             var instance = micro.MicroPubSub.GetInstance();
 
-            await instance.InitTopic(topicName1);
-            await instance.InitTopic(topicName2);
+            instance.InitTopic(topicName1);
+            instance.InitTopic(topicName2);
 
-            hdlTopic("1", await instance.Sub(topicName1));
-            hdlTopic("2", await instance.Sub(topicName2));
-            hdlTopic("3", await instance.Sub(topicName2));
+            hdlTopic("1", instance.Sub(topicName1));
+            hdlTopic("2", instance.Sub(topicName2));
+            hdlTopic("3", instance.Sub(topicName2));
 
             for (int i = 0; i < 50; i++)
             {
